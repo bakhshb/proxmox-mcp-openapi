@@ -243,7 +243,7 @@ proxmox-execute-vm-command node="pve" vmid=100 command="df"
 
 | MCP Server | Architecture | Tools | Token Cost |
 |------------|--------------|-------|------------|
-| **Traditional** (e.g. ProxmoxMCP-Plus) | One tool per API operation | ~35 explicit tools | ~15,000–20,000 tokens |
+| **Traditional Proxmox MCP** | One tool per API operation | ~35 explicit tools | ~15,000–20,000 tokens |
 | **proxmox-mcp-openapi** | OpenAPI-driven dynamic | 2 generic tools + 2 exec tools | ~500–1,000 tokens |
 
 **Result: ~95% token reduction**
@@ -275,9 +275,13 @@ The schema is loaded from the OpenAPI spec at startup, not hardcoded in the tool
 
 ## Inspiration
 
-This project was inspired by [limehawk/dokploy-mcp](https://github.com/limehawk/dokploy-mcp) which demonstrated that the 2-tool OpenAPI-driven pattern could dramatically reduce token costs for MCP servers.
+This project builds on two key inspirations:
 
-The dokploy-mcp approach was reverse-engineered and adapted for the Proxmox VE API, with additional SSH-based container command execution added.
+1. **[ProxmoxMCP-Plus](https://github.com/bakhshb/proxmox-mcp)** — The original 35-tool Python MCP server for Proxmox VE. It proved the full API surface area but carried high token overhead.
+
+2. **[limehawk/dokploy-mcp](https://github.com/limehawk/dokploy-mcp)** — Demonstrated that a 2-tool OpenAPI-driven pattern could dramatically reduce token costs while maintaining full API coverage.
+
+The proxmox-mcp-openapi takes the best of both: the dynamic OpenAPI approach from dokploy-mcp applied to Proxmox, with the additional SSH-based container command execution tools carried over from ProxmoxMCP-Plus.
 
 ### Architecture Pattern
 
@@ -296,8 +300,9 @@ Result:           95% token reduction with full API coverage
 - **2 core tools** + **2 execution tools**
 - **OpenAPI-driven**: 480 operations dynamically loaded from spec
 - **TypeScript**: Type-safe, compiled to JavaScript
-- **Zero dependencies on Proxmox Perl libraries**: Pure REST API only
+- **Pure REST API**: No Proxmox Perl library dependencies
 - **SSH key auth** for container commands (no API token needed for LXC exec)
+- **Exec tools carried over** from the original ProxmoxMCP-Plus (SSH+pct for LXC, QEMU agent for VMs)
 
 ### OpenAPI Spec
 
