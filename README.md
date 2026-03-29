@@ -1,112 +1,342 @@
 # proxmox-mcp-openapi
 
-An OpenAPI-driven MCP server for the Proxmox VE API with two generic tools.
+An **OpenAPI-driven 2-tool MCP server** for Proxmox VE. Instead of defining 35+ explicit tools, it exposes just 2 generic tools that can execute any of the 480+ Proxmox API operations dynamically — plus dedicated tools for executing commands inside VMs and containers.
+
+**Saves ~95% tokens** compared to traditional explicit-tool MCP servers.
+
+---
 
 ## Tools
 
 ### `proxmox-api`
-Execute any Proxmox VE API operation. HTTP method is auto-detected from the OpenAPI spec. Supports path parameter substitution.
+Execute any Proxmox VE API operation dynamically.
 
-**Parameters:**
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `path` | string | yes | API path from spec, e.g. `/nodes/{node}/qemu/{vmid}/status/current` |
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `path` | string | yes | API path, e.g. `/nodes/{node}/qemu/{vmid}/status/current` |
 | `method` | enum | no | HTTP method (auto-detected if omitted) |
-| `pathParams` | object | no | Path parameter values, e.g. `{ "node": "pve", "vmid": 100 }` |
-| `params` | object | no | Query params (GET/DELETE) or request body (POST/PUT/PATCH) |
+| `pathParams` | object | no | Path parameter values, e.g. `{"node": "pve", "vmid": 100}` |
+| `params` | object | no | Query params (GET) or request body (POST/PUT/PATCH) |
 
 ### `proxmox-api-schema`
-Discover available API operations and their parameters from the OpenAPI spec.
+Discover available API operations from the OpenAPI spec.
 
-**Parameters:**
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `tag` | string | no | Filter by tag, e.g. `nodes`, `cluster`, `storage`, `access` |
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tag` | string | no | Filter by tag: `nodes`, `cluster`, `storage`, `access`, `pools` |
 | `path` | string | no | Get details for a specific path |
-| `method` | enum | no | Filter by HTTP method (used with `path`) |
+| `method` | enum | no | Filter by HTTP method |
 
-Call with no parameters to see a summary of available tags.
+### `proxmox-execute-container-command`
+Execute shell commands inside LXC containers via SSH + `pct exec`.
 
-## Setup
+> **Note:** The Proxmox REST API has no endpoint for LXC command execution. This tool SSHes to the Proxmox node and runs `pct exec` locally.
 
-### 1. Install dependencies
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `node` | string | yes | Proxmox node name (e.g. `pve`) |
+| `vmid` | string\|number | yes | Container ID (e.g. `110`) |
+| `command` | string | yes | Shell command to run inside the container |
+
+**Returns:** `{ success, exitCode, output, error, node, vmid, command }`
+
+### `proxmox-execute-vm-command`
+Execute commands inside VMs via QEMU guest agent.
+
+> **Requirements:** VM must be running with `qemu-guest-agent` installed inside the guest.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `node` | string | no | Proxmox node name (default: `pve`) |
+| `vmid` | number | yes | VM ID (e.g. `100`) |
+| `command` | string | yes | Single executable with args (no pipes/redirects) |
+| `timeoutMs` | number | no | Timeout in ms (default: `30000`) |
+
+**Returns:** `{ success, exitCode, output, error, outTruncated?, errTruncated? }`
+
+---
+
+## Installation
+
+### Prerequisites
+
+- **Node.js** 18+ 
+- **npm** or **yarn**
+- Proxmox VE instance with API token
+- For container commands: SSH key access to Proxmox node
+
+### Option 1: Clone and Build
 
 ```bash
+# Clone the repository
+git clone https://github.com/bakhshb/proxmox-mcp-openapi.git
+cd proxmox-mcp-openapi
+
+# Install dependencies
 npm install
+
+# Build TypeScript
 npm run build
 ```
 
-### 2. Configure environment
+### Option 2: npm Package (when published)
 
-Copy `.env.example` and fill in your Proxmox credentials:
+```bash
+npm install -g proxmox-mcp-openapi
+```
+
+Then register with your MCP client (see [MCP Client Configuration](#mcp-client-configuration)).
+
+---
+
+## Configuration
+
+### Environment Variables
 
 ```bash
 cp .env.example .env
 ```
 
 **Required:**
-- `PROXMOX_URL` — Base URL including `/api2/json`, e.g. `https://pve.example.com:8006/api2/json`
-- `PROXMOX_API_TOKEN` — API token in `user@realm!tokenid=secret` format
+| Variable | Description |
+|----------|-------------|
+| `PROXMOX_URL` | Base URL including `/api2/json`, e.g. `https://pve.example.com:8006/api2/json` |
+| `PROXMOX_API_TOKEN` | Token in `user@realm!tokenid=secret` format |
 
 **Optional:**
-- `PROXMOX_INSECURE=true` — Skip TLS certificate verification (self-signed certs)
-- `PROXMOX_TIMEOUT` — Request timeout ms (default: 30000)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PROXMOX_INSECURE` | `false` | Skip TLS cert verification (for self-signed certs) |
+| `PROXMOX_TIMEOUT` | `30000` | Request timeout in ms |
+| `PROXMOX_SSH_KEY_PATH` | `~/.ssh/proxmox_mcp` | Path to SSH private key |
+| `PROXMOX_SSH_USER` | `root` | SSH username |
+| `PROXMOX_SSH_PORT` | `22` | SSH port |
 
-### API Token Auth
+### Proxmox API Token Setup
 
-Create an API token in Proxmox:
-1. Datacenter → Permissions → API Tokens → Add
-2. Set the token value as: `PROXMOX_API_TOKEN=root@pam!mytoken=<uuid>`
+1. In Proxmox Web UI: **Datacenter → Permissions → API Tokens → Add**
+2. Copy the token in format: `user@realm!tokenid=secret`
+3. Assign appropriate permissions to the token (e.g. PVEAuditor for read-only, PVEEditor for modifications)
 
-### 3. Register with Claude Desktop
+### SSH Key Setup (for Container Commands)
 
-Add to `~/.config/claude/claude_desktop_config.json` (or macOS equivalent):
+```bash
+# Generate SSH key
+ssh-keygen -t ed25519 -f ~/.ssh/proxmox_mcp
+
+# Add public key to Proxmox
+# Copy: cat ~/.ssh/proxmox_mcp.pub
+# Paste in: Proxmox Web UI → Permissions → SSH Keys → Add
+```
+
+---
+
+## MCP Client Configuration
+
+### OpenClaw
 
 ```json
 {
-  "mcpServers": {
-    "proxmox": {
-      "command": "node",
-      "args": ["/path/to/proxmox-mcp-openapi/build/index.js"],
-      "env": {
-        "PROXMOX_URL": "https://your-proxmox:8006/api2/json",
-        "PROXMOX_API_TOKEN": "root@pam!mytoken=your-secret",
-        "PROXMOX_INSECURE": "true"
+  "mcp": {
+    "servers": {
+      "proxmox-mcp-openapi": {
+        "command": "node",
+        "args": ["/absolute/path/to/proxmox-mcp-openapi/build/index.js"],
+        "env": {
+          "PROXMOX_URL": "https://your-proxmox:8006/api2/json",
+          "PROXMOX_API_TOKEN": "root@pam!mytoken=your-secret",
+          "PROXMOX_INSECURE": "true",
+          "PROXMOX_SSH_KEY_PATH": "~/.ssh/proxmox_mcp"
+        }
       }
     }
   }
 }
 ```
 
+### Claude Desktop
+
+```json
+{
+  "mcpServers": {
+    "proxmox-mcp-openapi": {
+      "command": "node",
+      "args": ["/absolute/path/to/proxmox-mcp-openapi/build/index.js"],
+      "env": {
+        "PROXMOX_URL": "https://your-proxmox:8006/api2/json",
+        "PROXMOX_API_TOKEN": "root@pam!mytoken=your-secret",
+        "PROXMOX_INSECURE": "true",
+        "PROXMOX_SSH_KEY_PATH": "~/.ssh/proxmox_mcp"
+      }
+    }
+  }
+}
+```
+
+### VS Code Copilot
+
+Add the same configuration to `settings.json` under `mcp.servers`.
+
+---
+
 ## Usage Examples
 
-**List all VMs on a node:**
-```
-proxmox-api path=/nodes/{node}/qemu pathParams={"node":"pve"}
+### API Operations
+
+```javascript
+// Get VM status
+proxmox-api path="/nodes/pve/qemu/100/status/current"
+
+// List all VMs
+proxmox-api path="/nodes/pve/qemu"
+
+// Start a VM
+proxmox-api path="/nodes/pve/qemu/100/status/start" method=POST
+
+// Get cluster resources
+proxmox-api path="/cluster/resources"
+
+// Discover storage operations
+proxmox-api-schema tag="storage"
+
+// Get parameters for a specific endpoint
+proxmox-api-schema path="/nodes/{node}/qemu/{vmid}/config"
 ```
 
-**Get VM status:**
-```
-proxmox-api path=/nodes/{node}/qemu/{vmid}/status/current pathParams={"node":"pve","vmid":100}
+### Container Commands
+
+```javascript
+// Get OS version
+proxmox-execute-container-command node="pve" vmid=110 command="cat /etc/os-release"
+
+// Check hostname
+proxmox-execute-container-command node="pve" vmid=110 command="hostname"
+
+// Disk usage
+proxmox-execute-container-command node="pve" vmid=110 command="df -h"
+
+// Update packages
+proxmox-execute-container-command node="pve" vmid=110 command="apt update && apt upgrade -y"
 ```
 
-**Start a VM:**
-```
-proxmox-api path=/nodes/{node}/qemu/{vmid}/status/start method=POST pathParams={"node":"pve","vmid":100}
+### VM Commands
+
+```javascript
+// Simple command
+proxmox-execute-vm-command node="pve" vmid=100 command="hostname"
+// → { success: true, output: "dokploy-swarm-1" }
+
+// Check disk space (note: no flags, QEMU agent limitation)
+proxmox-execute-vm-command node="pve" vmid=100 command="df"
+// → { success: true, output: "Filesystem..." }
+
+// For shell features (pipes, redirects), use proxmox-api directly:
+// 1. POST /agent/exec with input-data for stdin
+// 2. GET /agent/exec-status?pid=<pid>
 ```
 
-**Discover cluster operations:**
-```
-proxmox-api-schema tag=cluster
+---
+
+## Token Savings
+
+### Comparison with Traditional MCP Architecture
+
+| MCP Server | Architecture | Tools | Token Cost |
+|------------|--------------|-------|------------|
+| **Traditional** (e.g. ProxmoxMCP-Plus) | One tool per API operation | ~35 explicit tools | ~15,000–20,000 tokens |
+| **proxmox-mcp-openapi** | OpenAPI-driven dynamic | 2 generic tools + 2 exec tools | ~500–1,000 tokens |
+
+**Result: ~95% token reduction**
+
+### Why Tokens Matter
+
+MCP servers send their tool schemas to the LLM on every request. With a 200k token context window:
+- Traditional approach: 15-20k tokens just for schema, leaving less room for actual work
+- OpenAPI-driven: ~500 tokens, leaving the context window for your data
+
+### How It Works
+
+Instead of hardcoding all tools:
+```typescript
+// Traditional: 35+ explicit tools
+server.tool("list_nodes", {...})
+server.tool("get_vm_status", {...})
+server.tool("start_vm", {...})
+// ... 30 more
+
+// OpenAPI-driven: 2 dynamic tools
+server.tool("proxmox-api", {...})           // executes any API operation
+server.tool("proxmox-api-schema", {...})    // discovers available operations
 ```
 
-**Get parameters for a path:**
+The schema is loaded from the OpenAPI spec at startup, not hardcoded in the tools.
+
+---
+
+## Inspiration
+
+This project was inspired by [limehawk/dokploy-mcp](https://github.com/limehawk/dokploy-mcp) which demonstrated that the 2-tool OpenAPI-driven pattern could dramatically reduce token costs for MCP servers.
+
+The dokploy-mcp approach was reverse-engineered and adapted for the Proxmox VE API, with additional SSH-based container command execution added.
+
+### Architecture Pattern
+
 ```
-proxmox-api-schema path=/nodes/{node}/qemu/{vmid}/config
+Traditional MCP:   35 tools × detailed schemas = 15k+ tokens
+                   ↓
+OpenAPI-driven:    2 tools + runtime schema loading = ~500 tokens
+                   ↓
+Result:           95% token reduction with full API coverage
 ```
 
-## OpenAPI Spec
+---
 
-The spec is loaded from `reference/spec.v2.yaml` (symlinked to `proxmox-ve-openapi`).
-The spec covers Proxmox VE API v2 with 241 GET and 132 POST operations across tags:
-`cluster`, `nodes`, `storage`, `access`, `pools`, `version`.
+## Architecture
+
+- **2 core tools** + **2 execution tools**
+- **OpenAPI-driven**: 480 operations dynamically loaded from spec
+- **TypeScript**: Type-safe, compiled to JavaScript
+- **Zero dependencies on Proxmox Perl libraries**: Pure REST API only
+- **SSH key auth** for container commands (no API token needed for LXC exec)
+
+### OpenAPI Spec
+
+Includes the Proxmox VE API v2 specification with 480 operations across:
+- `cluster` (122 operations)
+- `nodes` (311 operations)
+- `storage` (5 operations)
+- `access` (36 operations)
+- `pools` (5 operations)
+- `version` (1 operation)
+
+---
+
+## Troubleshooting
+
+### "Access denied" on container command
+1. Verify SSH key added to Proxmox Web UI → Permissions → SSH Keys
+2. Verify container is **running** (not stopped)
+3. Test SSH manually: `ssh -i ~/.ssh/proxmox_mcp root@<proxmox-host>`
+
+### "SSH connection timeout"
+1. Check `node` parameter is correct (use node name like `pve`, not IP)
+2. Verify SSH is running on Proxmox node
+3. Check firewall allows port 22
+
+### API returns 401/403
+1. Verify token format: `user@realm!tokenid=secret` (not just the UUID)
+2. Check token has appropriate permissions in Proxmox
+
+### VM command fails with 596
+- QEMU agent doesn't support shell features (pipes, redirects)
+- Use `proxmox-api` directly with `input-data` for stdin
+
+### VM command fails with 404
+- QEMU guest agent not installed or not running inside the VM
+- Install with: `apt install qemu-guest-agent` (Linux) or enable via Hyper-V/VMware tools
+
+---
+
+## License
+
+MIT

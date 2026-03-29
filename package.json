@@ -28,8 +28,10 @@
   "type": "module",
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.12.0",
+    "@types/ssh2": "^1.15.5",
     "axios": "^1.9.0",
     "js-yaml": "^4.1.0",
+    "ssh2": "^1.17.0",
     "zod": "3.25.28"
   },
   "devDependencies": {
