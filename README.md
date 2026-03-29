@@ -1,5 +1,7 @@
 # proxmox-mcp-openapi
 
+[![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) **Open Source**
+
 An **OpenAPI-driven 2-tool MCP server** for Proxmox VE. Instead of defining 35+ explicit tools, it exposes just 2 generic tools that can execute any of the 480+ Proxmox API operations dynamically — plus dedicated tools for executing commands inside VMs and containers.
 
 **Saves ~95% tokens** compared to traditional explicit-tool MCP servers.
