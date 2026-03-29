@@ -1,0 +1,40 @@
+{
+  "name": "proxmox-mcp-openapi",
+  "version": "1.0.0",
+  "description": "MCP Server for Proxmox VE API",
+  "main": "build/index.js",
+  "bin": {
+    "proxmox-mcp": "build/index.js"
+  },
+  "files": [
+    "build",
+    "reference"
+  ],
+  "scripts": {
+    "build": "npm run clean && tsc && chmod 755 build/index.js",
+    "dev": "tsc --watch",
+    "start": "node build/index.js",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "modelcontextprotocol",
+    "mcp",
+    "proxmox"
+  ],
+  "author": "",
+  "license": "Apache-2.0",
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.12.0",
+    "axios": "^1.9.0",
+    "js-yaml": "^4.1.0",
+    "zod": "3.25.28"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.15.21",
+    "typescript": "^5.8.3"
+  }
+}
