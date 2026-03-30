@@ -246,7 +246,7 @@ proxmox-execute-vm-command node="pve" vmid=100 command="df"
 | MCP Server | Architecture | Tools | Token Cost |
 |------------|--------------|-------|------------|
 | **Traditional Proxmox MCP** | One tool per API operation | ~35 explicit tools | ~15,000–20,000 tokens |
-| **proxmox-mcp-openapi** | OpenAPI-driven dynamic | 2 generic tools + 2 exec tools | ~500–1,000 tokens |
+| **@bakhshb/proxmox-mcp-openapi** | OpenAPI-driven dynamic | 2 generic tools + 2 exec tools | ~500–1,000 tokens |
 
 **Result: ~95% token reduction**
 
