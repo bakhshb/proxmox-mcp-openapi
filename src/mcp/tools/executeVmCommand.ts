@@ -21,7 +21,7 @@ export const schema = {
     .string()
     .min(1)
     .describe(
-      "Command to run inside the VM via QEMU guest agent. The command string will be parsed and sent as an array [path, arg1, arg2...] per the guest agent exec API. Example: 'uname -a' becomes ['uname', '-a']. Note: shell features like pipes (|) and redirects (2>&1) are NOT supported — pass a single executable with arguments only."
+      "Command to run inside the VM via QEMU guest agent. The command string is parsed into an array per the guest agent API (e.g., 'uname -a' becomes ['uname', '-a']). Note: shell features like pipes (|) and redirects (2>&1) are NOT supported — pass a single executable with arguments only."
     ),
   timeoutMs: z
     .number()
