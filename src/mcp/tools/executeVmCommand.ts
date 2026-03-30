@@ -21,7 +21,7 @@ export const schema = {
     .string()
     .min(1)
     .describe(
-      "Command to run inside the VM via QEMU guest agent. Note: shell features like pipes (|) and redirects (2>&1) are NOT supported — pass a single executable with arguments only. For complex commands, use proxmox-api directly with manual exec/exec-status calls."
+      "Command to run inside the VM via QEMU guest agent. The command string will be parsed and sent as an array [path, arg1, arg2...] per the guest agent exec API. Example: 'uname -a' becomes ['uname', '-a']. Note: shell features like pipes (|) and redirects (2>&1) are NOT supported — pass a single executable with arguments only."
     ),
   timeoutMs: z
     .number()
@@ -55,6 +55,44 @@ interface ExecStatusResponse {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Parse a command string into an array of arguments.
+ * Handles both simple space-separated args and quoted strings.
+ * e.g.: "uname -a" -> ["uname", "-a"]
+ * e.g.: 'echo "hello world"' -> ["echo", "hello world"]
+ */
+function parseCommandString(cmd: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuote = false;
+  let quoteChar = "";
+
+  for (let i = 0; i < cmd.length; i++) {
+    const char = cmd[i];
+
+    if ((char === '"' || char === "'") && !inQuote) {
+      inQuote = true;
+      quoteChar = char;
+    } else if (char === quoteChar && inQuote) {
+      inQuote = false;
+      quoteChar = "";
+    } else if (char === " " && !inQuote) {
+      if (current.length > 0) {
+        result.push(current);
+        current = "";
+      }
+    } else {
+      current += char;
+    }
+  }
+
+  if (current.length > 0) {
+    result.push(current);
+  }
+
+  return result;
 }
 
 export async function handler(input: {
@@ -92,10 +130,17 @@ export async function handler(input: {
   }
 
   // Step 2: POST to agent/exec to start the command
+  // The API expects command as an array of strings: ["uname", "-a"]
+  // We need to parse the command string into arguments
   let pid: number;
   try {
+    // Parse command string into array of arguments
+    // Handles quoted strings: "arg1 arg2" -> ["arg1", "arg2"]
+    // Also handles: arg1 arg2 -> ["arg1", "arg2"]
+    const commandParts = parseCommandString(command);
+    
     const execRes = await client.post(`/nodes/${node}/qemu/${vmid}/agent/exec`, {
-      command,
+      command: commandParts,
     });
     pid = execRes.data?.data?.pid;
     if (!pid) {
