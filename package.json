@@ -1,5 +1,5 @@
 {
-  "name": "proxmox-mcp-openapi",
+  "name": "@bakhshb/proxmox-mcp-openapi",
   "version": "1.0.0",
   "description": "MCP Server for Proxmox VE API",
   "main": "build/index.js",
