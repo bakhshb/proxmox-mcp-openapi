@@ -81,10 +81,10 @@ npm install
 npm run build
 ```
 
-### Option 2: npm Package (when published)
+### Option 2: npm Package
 
 ```bash
-npm install -g proxmox-mcp-openapi
+npm install -g @bakhshb/proxmox-mcp-openapi
 ```
 
 Then register with your MCP client (see [MCP Client Configuration](#mcp-client-configuration)).
@@ -141,9 +141,9 @@ ssh-keygen -t ed25519 -f ~/.ssh/proxmox_mcp
 {
   "mcp": {
     "servers": {
-      "proxmox-mcp-openapi": {
-        "command": "node",
-        "args": ["/absolute/path/to/proxmox-mcp-openapi/build/index.js"],
+      "proxmox-mcp": {
+        "command": "npx",
+        "args": ["@bakhshb/proxmox-mcp-openapi"],
         "env": {
           "PROXMOX_URL": "https://your-proxmox:8006/api2/json",
           "PROXMOX_API_TOKEN": "root@pam!mytoken=your-secret",
@@ -161,9 +161,9 @@ ssh-keygen -t ed25519 -f ~/.ssh/proxmox_mcp
 ```json
 {
   "mcpServers": {
-    "proxmox-mcp-openapi": {
-      "command": "node",
-      "args": ["/absolute/path/to/proxmox-mcp-openapi/build/index.js"],
+    "proxmox-mcp": {
+      "command": "npx",
+      "args": ["@bakhshb/proxmox-mcp-openapi"],
       "env": {
         "PROXMOX_URL": "https://your-proxmox:8006/api2/json",
         "PROXMOX_API_TOKEN": "root@pam!mytoken=your-secret",
