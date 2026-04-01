@@ -3,44 +3,10 @@ import { AxiosError } from "axios";
 import { getApiClient } from "../../utils/apiClient.js";
 import { createLogger } from "../../utils/logger.js";
 import { ResponseFormatter } from "../../utils/responseFormatter.js";
-import { getOpenApiSpec, type HttpMethod } from "../../utils/openApiSpec.js";
+import { detectMethod, buildUrl } from "../../utils/httpUtils.js";
+import type { HttpMethod } from "../../utils/constants.js";
 
 const logger = createLogger("ProxmoxApi");
-
-const SUPPORTED_METHODS: HttpMethod[] = ["get", "post", "put", "delete", "patch"];
-
-/**
- * Auto-detect the HTTP method for a path from the spec.
- * Preference: get → post → put → delete → patch
- */
-function detectMethod(path: string): HttpMethod | null {
-  const spec = getOpenApiSpec();
-  const pathObj = spec.paths[path];
-  if (!pathObj) return null;
-
-  for (const method of SUPPORTED_METHODS) {
-    if (method in pathObj) return method;
-  }
-  return null;
-}
-
-/**
- * Substitute path parameters in the URL template.
- * e.g. /nodes/{node}/qemu/{vmid} + { node: "pve", vmid: 100 } → /nodes/pve/qemu/100
- */
-function buildUrl(
-  pathTemplate: string,
-  pathParams?: Record<string, unknown>
-): string {
-  if (!pathParams) return pathTemplate;
-  return pathTemplate.replace(/\{([^}]+)\}/g, (_, key: string) => {
-    const val = pathParams[key];
-    if (val === undefined || val === null) {
-      throw new Error(`Missing path parameter: ${key}`);
-    }
-    return String(val);
-  });
-}
 
 export const schema = {
   path: z

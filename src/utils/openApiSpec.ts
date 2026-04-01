@@ -3,6 +3,9 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import yaml from "js-yaml";
 import { createLogger } from "./logger.js";
+import { METHOD_PREFERENCE, type HttpMethod } from "./constants.js";
+
+export type { HttpMethod };
 
 const logger = createLogger("OpenApiSpec");
 
@@ -59,8 +62,6 @@ export function getOpenApiSpec(): OpenApiSpec {
   return cachedSpec;
 }
 
-export type HttpMethod = "get" | "post" | "put" | "delete" | "patch";
-
 /**
  * Auto-detects the HTTP method for a given path.
  * Preference order: get → post → put → delete → patch
@@ -70,7 +71,7 @@ export function detectMethod(path: string): HttpMethod | null {
   const pathObj = spec.paths[path];
   if (!pathObj) return null;
 
-  for (const method of ["get", "post", "put", "delete", "patch"] as HttpMethod[]) {
+  for (const method of METHOD_PREFERENCE) {
     if (method in pathObj) return method;
   }
   return null;
@@ -84,7 +85,7 @@ export function getPathMethodMap(): Map<string, HttpMethod> {
   const map = new Map<string, HttpMethod>();
 
   for (const [path, methods] of Object.entries(spec.paths)) {
-    for (const method of ["get", "post", "put", "delete", "patch"] as HttpMethod[]) {
+    for (const method of METHOD_PREFERENCE) {
       if (method in methods) {
         map.set(path, method);
         break;

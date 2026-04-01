@@ -2,9 +2,8 @@ import { z } from "zod";
 import { Client, ConnectConfig } from "ssh2";
 import { createLogger } from "../../utils/logger.js";
 import { ResponseFormatter } from "../../utils/responseFormatter.js";
-import * as fs from "fs";
-import * as path from "path";
-import * as os from "os";
+import { getSshConfig } from "../../utils/config.js";
+import { readFile } from "fs/promises";
 
 const logger = createLogger("ExecuteCommand");
 
@@ -40,21 +39,13 @@ interface ExecuteResult {
   exitCode: number;
 }
 
-function getSSHConfig() {
-  return {
-    keyPath: process.env.PROXMOX_SSH_KEY_PATH || path.join(os.homedir(), ".ssh", "proxmox_mcp"),
-    user: process.env.PROXMOX_SSH_USER || "root",
-    port: parseInt(process.env.PROXMOX_SSH_PORT || "22", 10),
-  };
-}
-
 async function executeCommandOverSSH(
   node: string,
   command: string
 ): Promise<ExecuteResult> {
   return new Promise((resolve) => {
-    const sshConfig = getSSHConfig();
-    const host = node; // Node name used as hostname
+    const sshConfig = getSshConfig();
+    const host = node;
 
     logger.info(`SSH connecting to ${host}:${sshConfig.port} for command execution`);
 
@@ -120,32 +111,28 @@ async function executeCommandOverSSH(
       });
     });
 
-    try {
-      // Read private key
-      const privateKey = fs.readFileSync(sshConfig.keyPath, "utf-8");
-
-      const connectConfig: ConnectConfig = {
-        host,
-        port: sshConfig.port,
-        username: sshConfig.user,
-        privateKey,
-        readyTimeout: 10000,
-        // Skip host key verification for simplicity
-        // In production, users should configure known_hosts properly
-      };
-
-      conn.connect(connectConfig);
-    } catch (err) {
-      clearTimeout(timeout);
-      const errorMsg = err instanceof Error ? err.message : "Unknown error";
-      logger.error(`Failed to read SSH key: ${errorMsg}`);
-      resolve({
-        success: false,
-        output: "",
-        error: `Failed to read SSH key at ${sshConfig.keyPath}: ${errorMsg}`,
-        exitCode: -1,
+    readFile(sshConfig.keyPath, "utf-8")
+      .then((privateKey) => {
+        const connectConfig: ConnectConfig = {
+          host,
+          port: sshConfig.port,
+          username: sshConfig.user,
+          privateKey,
+          readyTimeout: 10000,
+        };
+        conn.connect(connectConfig);
+      })
+      .catch((err) => {
+        clearTimeout(timeout);
+        const errorMsg = err instanceof Error ? err.message : "Unknown error";
+        logger.error(`Failed to read SSH key: ${errorMsg}`);
+        resolve({
+          success: false,
+          output: "",
+          error: `Failed to read SSH key at ${sshConfig.keyPath}: ${errorMsg}`,
+          exitCode: -1,
+        });
       });
-    }
   });
 }
 

@@ -4,12 +4,10 @@ import { ResponseFormatter } from "../../utils/responseFormatter.js";
 import {
   getOpenApiSpec,
   type OpenApiOperation,
-  type HttpMethod,
 } from "../../utils/openApiSpec.js";
+import { SUPPORTED_METHODS, type HttpMethod } from "../../utils/constants.js";
 
 const logger = createLogger("ProxmoxApiSchema");
-
-const SUPPORTED_METHODS: HttpMethod[] = ["get", "post", "put", "delete", "patch"];
 
 interface OperationDetail {
   path: string;

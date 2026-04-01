@@ -6,6 +6,7 @@ import axios, {
 } from "axios";
 import https from "https";
 import { createLogger } from "./logger.js";
+import { getApiConfig } from "./config.js";
 
 interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
   metadata?: {
@@ -15,34 +16,7 @@ interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
 
 const logger = createLogger("AxiosClient");
 
-function getConfig() {
-  const proxmoxUrl = process.env["PROXMOX_URL"];
-  const apiToken = process.env["PROXMOX_API_TOKEN"];
-  const ticketCookie = process.env["PROXMOX_TICKET"];
-  const csrfToken = process.env["PROXMOX_CSRF_TOKEN"];
-  const insecure = process.env["PROXMOX_INSECURE"] === "true";
-
-  if (!proxmoxUrl) {
-    throw new Error("Environment variable PROXMOX_URL is not defined");
-  }
-
-  if (!apiToken && !ticketCookie) {
-    throw new Error(
-      "Either PROXMOX_API_TOKEN or PROXMOX_TICKET must be defined"
-    );
-  }
-
-  return {
-    proxmoxUrl,
-    apiToken,
-    ticketCookie,
-    csrfToken,
-    insecure,
-    timeout: parseInt(process.env["PROXMOX_TIMEOUT"] ?? "30000", 10),
-  };
-}
-
-function buildHeaders(cfg: ReturnType<typeof getConfig>): Record<string, string> {
+function buildHeaders(cfg: ReturnType<typeof getApiConfig>): Record<string, string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -67,7 +41,7 @@ let clientInstance: AxiosInstance | null = null;
 export function getApiClient(): AxiosInstance {
   if (clientInstance) return clientInstance;
 
-  const cfg = getConfig();
+  const cfg = getApiConfig();
   const headers = buildHeaders(cfg);
 
   clientInstance = axios.create({
