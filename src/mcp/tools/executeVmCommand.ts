@@ -35,7 +35,7 @@ export const schema = {
 export const name = "proxmox-execute-vm-command";
 
 export const description =
-  "Execute a command inside a running VM via QEMU guest agent. The VM must have the QEMU guest agent installed and running. Note: shell features like pipes and redirects are NOT supported — pass a single executable with arguments. Uses the Proxmox API (PROXMOX_URL, PROXMOX_API_TOKEN) for communication.";
+  "Execute a command inside a running VM via QEMU guest agent. The VM must have the QEMU guest agent installed and running. Pass `command` as a single string (e.g., 'apt-get update' or 'uname -a'). The tool parses it into an array per the guest agent API. Shell features like pipes (|) and redirects (2>&1) are NOT supported. Uses the Proxmox API (PROXMOX_URL, PROXMOX_API_TOKEN) for communication.";
 
 export const annotations = {
   title: "Execute VM Command",
@@ -156,8 +156,8 @@ export async function handler(input: {
     if (status === 596 || status === 500) {
       return ResponseFormatter.error(
         "QEMU agent exec failed",
-        `The QEMU guest agent rejected the command. This can happen with shell features (pipes, redirects). ` +
-          `Use a single executable with arguments only, or use proxmox-api directly for complex commands. ` +
+        `The QEMU guest agent rejected the command. This can happen when command is passed as an array instead of a string (e.g., use 'apt-get update' not ['apt-get', 'update']). Shell features like pipes and redirects are also not supported. ` +
+          `Use a single executable with arguments as a string, or use proxmox-api directly for complex commands. ` +
           `HTTP ${status}: ${axiosErr.message}`
       );
     }
